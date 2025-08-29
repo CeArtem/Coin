@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Victory Coin</title>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(145deg, #000000, #1c1c1c);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .fade-in {
+      animation: fadeIn 1s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      padding: 40px 30px;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+      text-align: center;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: #ccc;
+      margin-bottom: 30px;
+    }
+
+    .question {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    .bet-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .bet-buttons button,
+    .spin-btn,
+    .back-btn {
+      background-color: #ffd700;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .bet-buttons button:hover,
+    .spin-btn:hover,
+    .back-btn:hover {
+      background-color: #e6c200;
+    }
+
+    .spinner {
+      font-size: 100px;
+      margin: 30px 0 10px;
+      height: 100px;
+      line-height: 100px;
+    }
+
+    .result {
+      margin-top: 25px;
+      font-size: 20px;
+      font-weight: bold;
+      min-height: 60px;
+    }
+
+    .back-btn {
+      margin-top: 30px;
+      background-color: transparent;
+      border: 2px solid #ffd700;
+      color: #ffd700;
+    }
+
+    .back-btn:hover {
+      background-color: #ffd700;
+      color: black;
+    }
+
+    #confetti-canvas {
+      position: fixed;
+      pointer-events: none;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Loading screen */
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #ffd700;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 9999;
+    }
+
+    #progress-bar {
+      width: 300px;
+      height: 10px;
+      background-color: #333;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background-color: #ffd700;
+      transition: width 0.3s;
+    }
+
+    #spin-count {
+      font-size: 14px;
+      margin-top: 10px;
+      color: #ffd700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading -->
+  <div id="loading-screen">
+    <div>Launching Victory Coin...</div>
+    <div id="progress-bar">
+      <div id="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- Main menu -->
+  <div class="container fade-in" id="selection-screen" style="display: none;">
+    <h1>🎰 Victory Coin</h1>
+    <div class="subtitle">Твоя удача вже поруч. Спробуй щастя прямо зараз!</div>
+    <p class="question">Какую рулетку вы желаете сейчас прокрутить?</p>
+    <div class="bet-buttons">
+      <button onclick="chooseBet(10)">💰 За 10</button>
+      <button onclick="chooseBet(50)">💰 За 50</button>
+      <button onclick="chooseBet(100)">💰 За 100</button>
+      <button onclick="chooseBet(200)">💰 За 200</button>
+      <button onclick="chooseBet(500)">💰 За 500</button>
+      <button onclick="chooseBet(1000)">💰 За 1000</button>
+    </div>
+  </div>
+
+  <!-- Roulette screen -->
+  <div class="container fade-in" id="roulette-screen" style="display: none;">
+    <h1>🎰 Victory Coin</h1>
+    <div class="subtitle">Обертай — та вигравай!</div>
+    <p>Ставка: <strong><span id="current-bet"></span> грн</strong></p>
+    <div id="spinner" class="spinner">❓</div>
+    <div id="spin-count">Прокруток до безкоштовної: 10</div>
+    <button class="spin-btn" onclick="spin()">Прокрутить 🎲</button>
+    <div id="result" class="result"></div>
+    <button class="back-btn" onclick="backToMenu()" style="display: none;">← Вернуться в меню</button>
+  </div>
+
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <script>
+    let currentBet = 0;
+    let spinCounter = 0;
+    let spinning = false;
+
+    const prizes = [
+      { icon: "🐉", name: "Дракон", multiplier: 1 },
+      { icon: "🦁", name: "Лев", multiplier: 2 },
+      { icon: "💀", name: "Череп", multiplier: 0 },
+      { icon: "🐰", name: "Кролик", multiplier: 0.1 },
+      { icon: "🏆", name: "Кубок", multiplier: 5 }
+    ];
+
+    // Фейковий лоадінг
+    window.addEventListener('load', () => {
+      let progress = 0;
+      const progressFill = document.getElementById("progress-fill");
+      const interval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress >= 100) {
+          progressFill.style.width = "100%";
+          clearInterval(interval);
+          setTimeout(() => {
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('selection-screen').style.display = 'block';
+          }, 500);
+        } else {
+          progressFill.style.width = progress + "%";
+        }
+      }, 100);
+    });
+
+    function chooseBet(amount) {
+      currentBet = amount;
+      document.getElementById("current-bet").textContent = amount;
+      document.getElementById("selection-screen").style.display = "none";
+      document.getElementById("roulette-screen").style.display = "block";
+      resetSpin();
+    }
+
+    function resetSpin() {
+      document.getElementById("spinner").textContent = "❓";
+      document.getElementById("result").textContent = "";
+      document.getElementById("result").style.display = "none";
+      document.querySelector(".back-btn").style.display = "none";
+      document.querySelector(".spin-btn").disabled = false;
+      updateSpinCounter();
+    }
+
+    function updateSpinCounter() {
+      const spinDisplay = document.getElementById("spin-count");
+      if (spinCounter === 9) {
+        spinDisplay.textContent = "🎁 Безкоштовна прокрутка!";
+      } else {
+        spinDisplay.textContent = `Прокруток до безкоштовної: ${10 - spinCounter}`;
+      }
+    }
+
+    function spin() {
+      if (spinning) return;
+
+      const freeSpin = spinCounter === 9;
+      spinning = true;
+      document.querySelector(".spin-btn").disabled = true;
+      const spinnerEl = document.getElementById("spinner");
+      const resultEl = document.getElementById("result");
+      resultEl.style.display = "none";
+      let count = 0;
+
+      const spinInterval = setInterval(() => {
+        const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
+        spinnerEl.textContent = randomPrize.icon;
+        count++;
+
+        if (count >= 20) {
+          clearInterval(spinInterval);
+          const finalPrize = prizes[Math.floor(Math.random() * prizes.length)];
+          spinnerEl.textContent = finalPrize.icon;
+
+          const betAmount = freeSpin ? 0 : currentBet;
+          const winAmount = Math.floor(currentBet * finalPrize.multiplier);
+
+          resultEl.innerHTML = `Выпало: ${finalPrize.icon} ${finalPrize.name}<br><br>💰 Вы выиграли: ${winAmount} грн`;
+          resultEl.style.display = "block";
+
+          if (finalPrize.multiplier >= 5) launchConfetti();
+
+          spinCounter = freeSpin ? 0 : spinCounter + 1;
+          updateSpinCounter();
+
+          document.querySelector(".back-btn").style.display = "inline-block";
+          spinning = false;
+        }
+      }, 100);
+    }
+
+    function backToMenu() {
+      document.getElementById("roulette-screen").style.display = "none";
+      document.getElementById("selection-screen").style.display = "block";
+    }
+
+    function launchConfetti() {
+      const duration = 3000;
+      const end = Date.now() + duration;
+
+      const interval = setInterval(() => {
+        if (Date.now() > end) return clearInterval(interval);
+        confetti({
+          particleCount: 50,
+          angle: Math.random() * 360,
+          spread: 70,
+          origin: { x: Math.random(), y: Math.random() }
+        });
+      }, 250);
+    }
+  </script>
+</body>
+</html>
